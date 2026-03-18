@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semesterplanerare – XLSX Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+            padding: 40px 48px;
+            max-width: 640px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: #16213e;
+        }
+        p.subtitle {
+            color: #666;
+            margin-bottom: 28px;
+            font-size: 0.95rem;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+        input[type="date"] {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #d0d5dd;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            transition: border-color 0.2s;
+        }
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #4361ee;
+        }
+        .sheets-section {
+            margin-bottom: 20px;
+        }
+        .sheets-section h2 {
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+            color: #16213e;
+        }
+        .sheet-block {
+            background: #f8f9fb;
+            border: 1.5px solid #e0e4ea;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .sheet-block .sheet-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .sheet-block .sheet-header input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1.5px solid #d0d5dd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .sheet-block .sheet-header input:focus {
+            outline: none;
+            border-color: #4361ee;
+        }
+        .sheet-block textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px 12px;
+            border: 1.5px solid #d0d5dd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            resize: vertical;
+        }
+        .sheet-block textarea:focus {
+            outline: none;
+            border-color: #4361ee;
+        }
+        .sheet-block textarea::placeholder {
+            color: #aaa;
+        }
+        .btn-remove-sheet {
+            background: #e74c3c;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-remove-sheet:hover { background: #c0392b; }
+        .btn-add-sheet {
+            display: inline-block;
+            background: #27ae60;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .btn-add-sheet:hover { background: #219a52; }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #4361ee;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #3a56d4; }
+        button:active { background: #2f48b8; }
+        .legend {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #555;
+        }
+        .legend strong { color: #1a1a2e; }
+        .legend span.code {
+            display: inline-block;
+            background: #e8ecff;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+        .legend .red {
+            display: inline-block;
+            width: 14px; height: 14px;
+            background: #ff6b6b;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 Semesterplanerare</h1>
+        <p class="subtitle">Generera en XLSX-fil för semesterplanering med svenska helgdagar markerade.</p>
+
+        <label for="startDate">Från datum</label>
+        <input type="date" id="startDate" value="2025-05-01">
+
+        <label for="endDate">Till datum</label>
+        <input type="date" id="endDate" value="2025-10-31">
+
+        <div class="sheets-section">
+            <h2>Ark / Blad</h2>
+            <div id="sheetsContainer"></div>
+            <button type="button" class="btn-add-sheet" onclick="addSheet()">+ Lägg till ark</button>
+        </div>
+
+        <button onclick="generateXLSX()">Generera XLSX</button>
+
+        <div class="legend">
+            <strong>Koder att fylla i:</strong><br>
+            <span class="code">S</span> = Semesteransökan &nbsp;
+            <span class="code">FL</span> = Föräldraledighet &nbsp;
+            <span class="code">HT</span> = Heltid<br><br>
+            <span class="red"></span> = Helg / svensk helgdag (röd markering)
+        </div>
+    </div>
+
+    <script>
+    // ── Swedish holidays ──────────────────────────────────────────────
+    function getEasterDate(year) {
+        // Meeus/Jones/Butcher algorithm
+        const a = year % 19;
+        const b = Math.floor(year / 100);
+        const c = year % 100;
+        const d = Math.floor(b / 4);
+        const e = b % 4;
+        const f = Math.floor((b + 8) / 25);
+        const g = Math.floor((b - f + 1) / 3);
+        const h = (19 * a + b - d - g + 15) % 30;
+        const i = Math.floor(c / 4);
+        const k = c % 4;
+        const l = (32 + 2 * e + 2 * i - h - k) % 7;
+        const m = Math.floor((a + 11 * h + 22 * l) / 451);
+        const month = Math.floor((h + l - 7 * m + 114) / 31);
+        const day = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(year, month - 1, day);
+    }
+
+    function addDays(date, days) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + days);
+        return d;
+    }
+
+    function dateKey(d) {
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
+
+    function getSwedishHolidays(year) {
+        const holidays = {};
+        const add = (d, name) => { holidays[dateKey(d)] = name; };
+
+        // Fixed holidays
+        add(new Date(year, 0, 1), 'Nyårsdagen');
+        add(new Date(year, 0, 6), 'Trettondedag jul');
+        add(new Date(year, 4, 1), 'Första maj');
+        add(new Date(year, 5, 6), 'Nationaldagen');
+        add(new Date(year, 11, 24), 'Julafton');
+        add(new Date(year, 11, 25), 'Juldagen');
+        add(new Date(year, 11, 26), 'Annandag jul');
+        add(new Date(year, 11, 31), 'Nyårsafton');
+
+        // Easter-based
+        const easter = getEasterDate(year);
+        add(addDays(easter, -2), 'Långfredagen');
+        add(addDays(easter, -1), 'Påskafton');
+        add(easter, 'Påskdagen');
+        add(addDays(easter, 1), 'Annandag påsk');
+        add(addDays(easter, 39), 'Kristi himmelsfärdsdag');
+        add(addDays(easter, 49), 'Pingstdagen');
+
+        // Midsommar: Saturday between June 20-26
+        for (let d = 20; d <= 26; d++) {
+            const dt = new Date(year, 5, d);
+            if (dt.getDay() === 6) {
+                add(dt, 'Midsommardagen');
+                add(addDays(dt, -1), 'Midsommarafton');
+                break;
+            }
+        }
+
+        // Alla helgons dag: Saturday between Oct 31 - Nov 6
+        for (let d = 31; d <= 37; d++) {
+            const dt = new Date(year, 9, d); // JS handles overflow
+            if (dt.getDay() === 6) {
+                add(dt, 'Alla helgons dag');
+                break;
+            }
+        }
+
+        return holidays;
+    }
+
+    // ── ISO week number ───────────────────────────────────────────────
+    function getISOWeek(date) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+
+    // ── Swedish day names (short) ─────────────────────────────────────
+    const DAY_NAMES_SHORT = ['Sö', 'Må', 'Ti', 'On', 'To', 'Fr', 'Lö'];
+    const MONTH_NAMES = [
+        'Januari', 'Februari', 'Mars', 'April', 'Maj', 'Juni',
+        'Juli', 'Augusti', 'September', 'Oktober', 'November', 'December'
+    ];
+
+    // ── Column letter helper ──────────────────────────────────────────
+    function colLetter(n) {
+        let s = '';
+        while (n >= 0) {
+            s = String.fromCharCode(65 + (n % 26)) + s;
+            n = Math.floor(n / 26) - 1;
+        }
+        return s;
+    }
+
+    // ── Generate dates array ──────────────────────────────────────────
+    function generateDates(startStr, endStr) {
+        const dates = [];
+        const start = new Date(startStr + 'T00:00:00');
+        const end = new Date(endStr + 'T00:00:00');
+        const cur = new Date(start);
+        while (cur <= end) {
+            dates.push(new Date(cur));
+            cur.setDate(cur.getDate() + 1);
+        }
+        return dates;
+    }
+
+    // ── Sheet management ──────────────────────────────────────────────
+    let sheetCounter = 0;
+
+    function addSheet(name, names) {
+        sheetCounter++;
+        const id = sheetCounter;
+        const container = document.getElementById('sheetsContainer');
+        const block = document.createElement('div');
+        block.className = 'sheet-block';
+        block.id = 'sheet-' + id;
+        block.innerHTML = `
+            <div class="sheet-header">
+                <label style="margin:0;white-space:nowrap;">Arknamn:</label>
+                <input type="text" class="sheet-name" value="${name || 'Ark ' + id}" placeholder="Namn på arket">
+                <button type="button" class="btn-remove-sheet" onclick="removeSheet(${id})">✕ Ta bort</button>
+            </div>
+            <label style="font-size:0.85rem;margin-bottom:4px;">Anställda (en per rad):</label>
+            <textarea class="sheet-names" placeholder="Anna Svensson&#10;Erik Johansson&#10;...">${names || ''}</textarea>
+        `;
+        container.appendChild(block);
+    }
+
+    function removeSheet(id) {
+        const block = document.getElementById('sheet-' + id);
+        if (block) block.remove();
+        // Ensure at least one sheet
+        if (document.querySelectorAll('.sheet-block').length === 0) {
+            addSheet();
+        }
+    }
+
+    function getSheets() {
+        const blocks = document.querySelectorAll('.sheet-block');
+        const sheets = [];
+        blocks.forEach(block => {
+            const sheetName = block.querySelector('.sheet-name').value.trim() || 'Ark';
+            const namesText = block.querySelector('.sheet-names').value;
+            const names = namesText.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+            sheets.push({ sheetName, names });
+        });
+        return sheets;
+    }
+
+    // Add first sheet on load
+    addSheet();
+
+    // ── Main generation ───────────────────────────────────────────────
+    async function generateXLSX() {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        const sheets = getSheets();
+
+        if (!startDate || !endDate) {
+            alert('Vänligen välj både start- och slutdatum.');
+            return;
+        }
+        if (new Date(startDate) > new Date(endDate)) {
+            alert('Startdatum måste vara före slutdatum.');
+            return;
+        }
+        if (sheets.length === 0) {
+            alert('Lägg till minst ett ark.');
+            return;
+        }
+
+        const dates = generateDates(startDate, endDate);
+        if (dates.length === 0) return;
+
+        // Collect holidays for all years in range
+        const years = new Set(dates.map(d => d.getFullYear()));
+        let allHolidays = {};
+        for (const y of years) {
+            Object.assign(allHolidays, getSwedishHolidays(y));
+        }
+
+        const workbook = new ExcelJS.Workbook();
+
+        for (const sheetDef of sheets) {
+        const employeeNames = sheetDef.names;
+        const numRows = Math.max(employeeNames.length, 1);
+
+        const ws = workbook.addWorksheet(sheetDef.sheetName, {
+            views: [{ state: 'frozen', xSplit: 1, ySplit: 5 }]
+        });
+
+        const DATA_COL_START = 2; // Column B = index 2
+        const totalDateCols = dates.length;
+
+        // ── Styles ────────────────────────────────────────────────────
+        const headerFont = { name: 'Calibri', size: 10, bold: true };
+        const normalFont = { name: 'Calibri', size: 9 };
+        const smallFont = { name: 'Calibri', size: 8 };
+
+        const thinBorder = {
+            top: { style: 'thin', color: { argb: 'FFB0B0B0' } },
+            left: { style: 'thin', color: { argb: 'FFB0B0B0' } },
+            bottom: { style: 'thin', color: { argb: 'FFB0B0B0' } },
+            right: { style: 'thin', color: { argb: 'FFB0B0B0' } }
+        };
+
+        const redFill = {
+            type: 'pattern', pattern: 'solid',
+            fgColor: { argb: 'FFFF9999' }
+        };
+
+        const lightRedFill = {
+            type: 'pattern', pattern: 'solid',
+            fgColor: { argb: 'FFFFC7C7' }
+        };
+
+        const monthFill = {
+            type: 'pattern', pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' }
+        };
+
+        const weekFill = {
+            type: 'pattern', pattern: 'solid',
+            fgColor: { argb: 'FFD6E4F0' }
+        };
+
+        const dateFill = {
+            type: 'pattern', pattern: 'solid',
+            fgColor: { argb: 'FFEEF3FA' }
+        };
+
+        const labelFill = {
+            type: 'pattern', pattern: 'solid',
+            fgColor: { argb: 'FFF2F2F2' }
+        };
+
+        // ── Row 1: Legend ─────────────────────────────────────────────
+        const row1 = ws.getRow(1);
+        row1.height = 18;
+
+        // ── Row 2: Legend codes ───────────────────────────────────────
+        const row2 = ws.getRow(2);
+        row2.height = 22;
+        const legendCell = ws.getCell('A2');
+        legendCell.value = 'S= Semesteransökan    FL= Ansökan om föräldraledighet    HT= Heltid';
+        legendCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF555555' } };
+
+        // Merge legend across some columns
+        const legendEnd = Math.min(DATA_COL_START + totalDateCols - 1, DATA_COL_START + 20);
+        ws.mergeCells(2, 1, 2, legendEnd);
+
+        // ── Row 3: Month header ──────────────────────────────────────
+        const row3 = ws.getRow(3);
+        row3.height = 24;
+
+        // Column A header
+        ws.getCell('A3').value = '';
+        ws.getCell('A3').fill = monthFill;
+        ws.getCell('A3').border = thinBorder;
+
+        // Group dates by month
+        let monthGroups = [];
+        let currentMonth = -1;
+        for (let i = 0; i < dates.length; i++) {
+            const m = dates[i].getMonth();
+            const y = dates[i].getFullYear();
+            if (m !== currentMonth || (monthGroups.length > 0 && monthGroups[monthGroups.length - 1].year !== y)) {
+                monthGroups.push({ month: m, year: y, startIdx: i, endIdx: i });
+                currentMonth = m;
+            } else {
+                monthGroups[monthGroups.length - 1].endIdx = i;
+            }
+        }
+
+        for (const mg of monthGroups) {
+            const startCol = DATA_COL_START + mg.startIdx;
+            const endCol = DATA_COL_START + mg.endIdx;
+
+            if (startCol !== endCol) {
+                ws.mergeCells(3, startCol, 3, endCol);
+            }
+
+            const cell = ws.getCell(3, startCol);
+            cell.value = MONTH_NAMES[mg.month].toUpperCase();
+            cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = monthFill;
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = thinBorder;
+
+            // Set fill for all cells in the merge range
+            for (let c = startCol; c <= endCol; c++) {
+                const mc = ws.getCell(3, c);
+                mc.fill = monthFill;
+                mc.border = thinBorder;
+            }
+        }
+
+        // ── Row 4: Week header ───────────────────────────────────────
+        const row4 = ws.getRow(4);
+        row4.height = 20;
+
+        ws.getCell('A4').value = 'Vecka';
+        ws.getCell('A4').font = headerFont;
+        ws.getCell('A4').fill = weekFill;
+        ws.getCell('A4').border = thinBorder;
+        ws.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Group dates by ISO week
+        let weekGroups = [];
+        let currentWeek = -1;
+        let currentWeekYear = -1;
+        for (let i = 0; i < dates.length; i++) {
+            const w = getISOWeek(dates[i]);
+            const y = dates[i].getFullYear();
+            // Handle week boundaries
+            if (w !== currentWeek || y !== currentWeekYear) {
+                weekGroups.push({ week: w, year: y, startIdx: i, endIdx: i });
+                currentWeek = w;
+                currentWeekYear = y;
+            } else {
+                weekGroups[weekGroups.length - 1].endIdx = i;
+            }
+        }
+
+        for (const wg of weekGroups) {
+            const startCol = DATA_COL_START + wg.startIdx;
+            const endCol = DATA_COL_START + wg.endIdx;
+
+            if (startCol !== endCol) {
+                ws.mergeCells(4, startCol, 4, endCol);
+            }
+
+            const cell = ws.getCell(4, startCol);
+            cell.value = wg.week;
+            cell.font = { name: 'Calibri', size: 9, bold: true };
+            cell.fill = weekFill;
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = thinBorder;
+
+            for (let c = startCol; c <= endCol; c++) {
+                const mc = ws.getCell(4, c);
+                mc.fill = weekFill;
+                mc.border = thinBorder;
+            }
+        }
+
+        // ── Row 5: Date numbers + day names ──────────────────────────
+        const row5 = ws.getRow(5);
+        row5.height = 28;
+
+        ws.getCell('A5').value = 'Datum';
+        ws.getCell('A5').font = headerFont;
+        ws.getCell('A5').fill = dateFill;
+        ws.getCell('A5').border = thinBorder;
+        ws.getCell('A5').alignment = { horizontal: 'center', vertical: 'middle' };
+
+        for (let i = 0; i < dates.length; i++) {
+            const col = DATA_COL_START + i;
+            const d = dates[i];
+            const dayOfWeek = d.getDay(); // 0=Sun, 6=Sat
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const isHoliday = allHolidays[dateKey(d)] !== undefined;
+            const isRed = isWeekend || isHoliday;
+
+            const cell = ws.getCell(5, col);
+            cell.value = d.getDate();
+            cell.font = {
+                name: 'Calibri', size: 8, bold: true,
+                color: isRed ? { argb: 'FFCC0000' } : { argb: 'FF333333' }
+            };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = thinBorder;
+
+            if (isRed) {
+                cell.fill = lightRedFill;
+            } else {
+                cell.fill = dateFill;
+            }
+
+            // Set narrow column width for date columns
+            ws.getColumn(col).width = 3.5;
+        }
+
+        // ── Column A width ───────────────────────────────────────────
+        ws.getColumn(1).width = 22;
+
+        // ── Data rows (employee rows) ────────────────────────────────
+        const dataStartRow = 6;
+        for (let r = 0; r < numRows; r++) {
+            const rowNum = dataStartRow + r;
+            const row = ws.getRow(rowNum);
+            row.height = 20;
+
+            // Name cell
+            const nameCell = ws.getCell(rowNum, 1);
+            nameCell.value = employeeNames[r] || '';
+            nameCell.font = normalFont;
+            nameCell.fill = labelFill;
+            nameCell.border = thinBorder;
+            nameCell.alignment = { vertical: 'middle' };
+
+            // Date cells
+            for (let i = 0; i < dates.length; i++) {
+                const col = DATA_COL_START + i;
+                const d = dates[i];
+                const dayOfWeek = d.getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const isHoliday = allHolidays[dateKey(d)] !== undefined;
+                const isRed = isWeekend || isHoliday;
+
+                const cell = ws.getCell(rowNum, col);
+                cell.font = smallFont;
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = thinBorder;
+
+                if (isRed) {
+                    cell.fill = redFill;
+                }
+
+                // Add holiday name as comment/note via tooltip
+                if (isHoliday && r === 0) {
+                    cell.note = allHolidays[dateKey(d)];
+                }
+            }
+        }
+
+        } // end for each sheet
+
+        // ── Generate & download ──────────────────────────────────────
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        const s = new Date(startDate + 'T00:00:00');
+        const e = new Date(endDate + 'T00:00:00');
+        const fileName = `Semester ${MONTH_NAMES[s.getMonth()]}–${MONTH_NAMES[e.getMonth()]} ${s.getFullYear()}.xlsx`;
+        saveAs(blob, fileName);
+    }
+    </script>
+</body>
+</html>
